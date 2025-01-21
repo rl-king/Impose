@@ -34,6 +34,7 @@ library impose-lib
                       , process
                       , text
                       , time
+                      , containers
 
 test-suite spec
     import:           defaults
@@ -41,10 +42,10 @@ test-suite spec
     main-is: Spec.hs
     hs-source-dirs:
         test
-    build-depends:
-      base ^>=4.18.2.1
-      , hspec
-      , hspec-contrib
-      , QuickCheck
-      , HUnit
-      , impose-lib
+    build-depends:    base ^>=4.18.2.1
+                      , hspec
+                      , hspec-contrib
+                      , QuickCheck
+                      , HUnit
+                      , impose-lib
+                      , containers

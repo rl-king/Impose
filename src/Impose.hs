@@ -3,8 +3,9 @@
 
 module Impose where
 
-import Data.Bifunctor (bimap)
 import Data.List qualified as List
+import Data.Map qualified as Map
+import GHC.Float (int2Float)
 import Options.Applicative
 import System.FilePath ((</>))
 import System.FilePath qualified as FilePath
@@ -17,7 +18,6 @@ main = do
   pages <- fromInputDirOrdered config
   print config
   print pages
-  print $ reorder pages
 
 
 fromInputDirOrdered :: Config -> IO [FilePath]
@@ -39,32 +39,33 @@ data Paper
   deriving (Show, Eq)
 
 
-paper :: Paper
-paper =
-  Paper 2 15 1 16
-
-
-paperToPages :: Int -> Int -> Paper
-paperToPages paper totalPages =
+toPaper :: Int -> Int -> Paper
+toPaper paper totalPages =
   Paper fl fr bl br
  where
   fl = br + 1
-  fr = br - 1
-  bl = 1
-  br = 1 + (paper - 1) * 2
+  fr = bl - 1
+  bl = totalPages - br + 1
+  br = (paper - 1) * 2 + 1
 
 
-reorder :: [a] -> [a]
-reorder list =
-  mconcat $ zipWith (\a b -> [a, b]) odd even
- where
-  (odd, even) = reverse <$> oddEven list
-
-
-oddEven :: [a] -> ([a], [a])
-oddEven [] = ([], [])
-oddEven [x] = ([x], [])
-oddEven (x : y : xs) = bimap (x :) (y :) (oddEven xs)
+toIndex :: Int -> Map.Map Int Int
+toIndex totalPages =
+  foldr
+    ( \ix acc ->
+        let
+          paper = toPaper ix totalPages
+         in
+          Map.fromList
+            [ (paper.backLeft, ix)
+            , (paper.backRight, ix)
+            , (paper.frontLeft, ix)
+            , (paper.frontRight, ix)
+            ]
+            <> acc
+    )
+    mempty
+    (take (ceiling (int2Float totalPages / 4)) [1 ..])
 
 
 -- CLI
