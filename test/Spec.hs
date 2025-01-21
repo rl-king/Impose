@@ -1,18 +1,40 @@
-import Control.Exception (evaluate)
+import Impose (Paper (..))
 import Impose qualified
 import Test.Hspec
-import Test.QuickCheck
 
 
 main :: IO ()
 main = hspec $ do
-  describe "Prelude.head" $ do
-    it "returns the first element of a list" $ do
-      head [23 ..] `shouldBe` (23 :: Int)
+  describe "Impose util" $ do
+    let totalPages = 16
 
-    it "returns the first element of an *arbitrary* list" $
-      property $
-        \x xs -> head (x : xs) == (x :: Int)
+    it "paper from page 1" $ do
+      Impose.paperToPages 1 totalPages
+        `shouldBe` Paper
+          { frontLeft = 2
+          , frontRight = 15
+          , backLeft = 16
+          , backRight = 1
+          }
 
-    it "throws an exception if used with an empty list" $ do
-      evaluate (head []) `shouldThrow` anyException
+    it "paper from page 2" $ do
+      Impose.paperToPages 2 totalPages
+        `shouldBe` Paper
+          { frontLeft = 4
+          , frontRight = 13
+          , backLeft = 14
+          , backRight = 3
+          }
+
+    it "paper from page 3" $ do
+      Impose.paperToPages 3 totalPages
+        `shouldBe` Paper
+          { frontLeft = 6
+          , frontRight = 11
+          , backLeft = 12
+          , backRight = 5
+          }
+
+    it "splits odd and even indecies" $ do
+      Impose.oddEven @Int (take 6 [0 ..])
+        `shouldBe` ([0, 2, 4], [1, 3, 5])

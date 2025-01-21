@@ -3,12 +3,12 @@
 
 module Impose where
 
+import Data.Bifunctor (bimap)
 import Data.List qualified as List
 import Options.Applicative
 import System.FilePath ((</>))
 import System.FilePath qualified as FilePath
 import System.FilePath.Glob qualified as Glob
-
 
 
 main :: IO ()
@@ -29,14 +29,42 @@ fromInputDirOrdered config = do
     $ filter (FilePath.isExtensionOf "tif") pages
 
 
-reorder :: [a] -> ([a], [a])
-reorder list =
-  (odd, even)
+data Paper
+  = Paper
+  { frontLeft :: !Int
+  , frontRight :: !Int
+  , backLeft :: !Int
+  , backRight :: !Int
+  }
+  deriving (Show, Eq)
+
+
+paper :: Paper
+paper =
+  Paper 2 15 1 16
+
+
+paperToPages :: Int -> Int -> Paper
+paperToPages paper totalPages =
+  Paper fl fr bl br
  where
-  (odd, even) = oddEven list
-  oddEven [] = ([], [])
-  oddEven (x : []) = ([x], [])
-  oddEven (x : y : xs) = (x : (fst $ oddEven xs), y : (snd $ oddEven xs))
+  fl = br + 1
+  fr = br - 1
+  bl = 1
+  br = 1 + (paper - 1) * 2
+
+
+reorder :: [a] -> [a]
+reorder list =
+  mconcat $ zipWith (\a b -> [a, b]) odd even
+ where
+  (odd, even) = reverse <$> oddEven list
+
+
+oddEven :: [a] -> ([a], [a])
+oddEven [] = ([], [])
+oddEven [x] = ([x], [])
+oddEven (x : y : xs) = bimap (x :) (y :) (oddEven xs)
 
 
 -- CLI

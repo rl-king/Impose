@@ -8,23 +8,22 @@ maintainer:         hello@rubenlieking.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
-common warnings
+common defaults
     ghc-options: -Wall
     default-language: GHC2021
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
 
 executable impose
-    import:           warnings
-    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+    import:           defaults
     main-is:          Main.hs
     build-depends:    base ^>=4.18.2.1
                       , impose-lib
     hs-source-dirs:   exe
-    default-language: GHC2021
 
 library impose-lib
+    import:           defaults
     exposed-modules:
       Impose
-    default-language: GHC2021
     hs-source-dirs:
       src
     build-depends:    base ^>=4.18.2.1
@@ -37,11 +36,11 @@ library impose-lib
                       , time
 
 test-suite spec
+    import:           defaults
     type: exitcode-stdio-1.0
     main-is: Spec.hs
     hs-source-dirs:
         test
-    ghc-options: -threaded -rtsopts -with-rtsopts=-N
     build-depends:
       base ^>=4.18.2.1
       , hspec
@@ -49,4 +48,3 @@ test-suite spec
       , QuickCheck
       , HUnit
       , impose-lib
-    default-language: GHC2021
