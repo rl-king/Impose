@@ -7,10 +7,10 @@ import Test.Hspec
 main :: IO ()
 main = hspec $ do
   describe "Impose util" $ do
-    let totalPages = 16
+    let signatureSize = 4
 
     it "paper from page 1" $ do
-      Impose.toPaper 1 totalPages
+      Impose.toPaper 1 signatureSize
         `shouldBe` Paper
           { frontLeft = 2
           , frontRight = 15
@@ -19,7 +19,7 @@ main = hspec $ do
           }
 
     it "paper from page 2" $ do
-      Impose.toPaper 2 totalPages
+      Impose.toPaper 2 signatureSize
         `shouldBe` Paper
           { frontLeft = 4
           , frontRight = 13
@@ -28,7 +28,7 @@ main = hspec $ do
           }
 
     it "paper from page 3" $ do
-      Impose.toPaper 3 totalPages
+      Impose.toPaper 3 signatureSize
         `shouldBe` Paper
           { frontLeft = 6
           , frontRight = 11
@@ -45,17 +45,8 @@ main = hspec $ do
           , backRight = 1
           }
 
-    it "paper from 2 paper" $ do
-      Impose.toPaper 2 5
-        `shouldBe` Paper
-          { frontLeft = 4
-          , frontRight = 5
-          , backLeft = 3
-          , backRight = 6
-          }
-
     it "gens papers with 16 pages" $ do
-      Impose.toIndex 16
+      Impose.toIndex 4
         `shouldBe` Map.fromList
           [ (1, (1, BackRight))
           , (2, (1, FrontLeft))
@@ -76,19 +67,19 @@ main = hspec $ do
           ]
 
     it "list to position off by 0" $ do
-      Impose.listToPosition 0 ["1"] `shouldBe` [("1", Just (1, BackRight))]
+      Impose.listToPosition 0 1 ["1"] `shouldBe` [("1", Just (1, BackRight))]
 
     it "list to position off by 1" $ do
-      Impose.listToPosition 1 ["1"] `shouldBe` [("1", Just (1, FrontLeft))]
+      Impose.listToPosition 1 1 ["1"] `shouldBe` [("1", Just (1, FrontLeft))]
 
     it "list to position off by 2" $ do
-      Impose.listToPosition 2 ["1"] `shouldBe` [("1", Just (1, FrontRight))]
+      Impose.listToPosition 2 1 ["1"] `shouldBe` [("1", Just (1, FrontRight))]
 
     it "list to position off by 3" $ do
-      Impose.listToPosition 3 ["1"] `shouldBe` [("1", Just (1, BackLeft))]
+      Impose.listToPosition 3 1 ["1"] `shouldBe` [("1", Just (1, BackLeft))]
 
     it "list to position off by 0, 4 pages" $ do
-      Impose.listToPosition 0 ["1", "2", "3", "4"]
+      Impose.listToPosition 0 1 ["1", "2", "3", "4"]
         `shouldBe` [ ("1", Just (1, BackRight))
                    , ("2", Just (1, FrontLeft))
                    , ("3", Just (1, FrontRight))
@@ -96,9 +87,17 @@ main = hspec $ do
                    ]
 
     it "list to position off by 1, 4 pages" $ do
-      Impose.listToPosition 1 ["1", "2", "3", "4"]
+      Impose.listToPosition 1 2 ["1", "2", "3", "4"]
         `shouldBe` [ ("1", Just (1, FrontLeft))
                    , ("2", Just (2, BackRight))
                    , ("3", Just (2, FrontLeft))
                    , ("4", Just (2, FrontRight))
+                   ]
+
+    it "list to position off by 2, 4 pages" $ do
+      Impose.listToPosition 2 2 ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (2, BackRight))
+                   , ("2", Just (2, FrontLeft))
+                   , ("3", Just (2, FrontRight))
+                   , ("4", Just (2, BackLeft))
                    ]

@@ -49,42 +49,42 @@ data PaperPosition
 
 
 toPaper :: Int -> Int -> Paper
-toPaper paper totalPages =
+toPaper paper totalPapers =
   Paper fl fr bl br
  where
   fl = br + 1
   fr = bl - 1
   bl = total - br + 1
   br = (paper - 1) * 2 + 1
-  total = max 4 totalPages
+  total = totalPapers * 4
 
 
 toIndex :: Int -> Map.Map Int (Int, PaperPosition)
-toIndex totalPages =
+toIndex totalPapers =
   foldr
-    ( \ix acc ->
+    ( \paper acc ->
         let
-          paper = toPaper ix totalPages
+          paperPos = toPaper paper totalPapers
          in
           Map.fromList
-            [ (paper.backLeft, (ix, BackLeft))
-            , (paper.backRight, (ix, BackRight))
-            , (paper.frontLeft, (ix, FrontLeft))
-            , (paper.frontRight, (ix, FrontRight))
+            [ (paperPos.backLeft, (paper, BackLeft))
+            , (paperPos.backRight, (paper, BackRight))
+            , (paperPos.frontLeft, (paper, FrontLeft))
+            , (paperPos.frontRight, (paper, FrontRight))
             ]
             <> acc
     )
     mempty
     ixs
  where
-  ixs = take (ceiling (int2Float totalPages / 4)) [1 ..]
+  ixs = take totalPapers [1 ..]
 
 
-listToPosition :: Int -> [FilePath] -> [(FilePath, Maybe (Int, PaperPosition))]
-listToPosition offset xs =
+listToPosition :: Int -> Int -> [FilePath] -> [(FilePath, Maybe (Int, PaperPosition))]
+listToPosition offset signatureSize xs =
   [(x, Map.lookup ix index) | (x, ix) <- xsWithIndex]
  where
-  index = Debug.traceShowId $ toIndex $ offset + length xs
+  index = Debug.traceShowId $ toIndex signatureSize
   xsWithIndex = zip xs [offset + 1 ..]
 
 
