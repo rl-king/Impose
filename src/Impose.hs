@@ -3,6 +3,7 @@
 
 module Impose where
 
+import Data.Foldable (traverse_)
 import Data.List qualified as List
 import Data.Map qualified as Map
 import Debug.Trace qualified as Debug
@@ -16,9 +17,14 @@ import System.FilePath.Glob qualified as Glob
 main :: IO ()
 main = do
   config <- parseArgs
-  pages <- fromInputDirOrdered config
   print config
-  print pages
+  pages <- fromInputDirOrdered config
+  let signatureSize =
+        case config.signatureSize of
+          Auto -> ceiling $ int2Float (length pages) / 4
+          Custom n -> n
+      positions = listToPosition config.offset signatureSize pages
+  traverse_ print positions
 
 
 fromInputDirOrdered :: Config -> IO [FilePath]
@@ -84,7 +90,7 @@ listToPosition :: Int -> Int -> [FilePath] -> [(FilePath, Maybe (Int, PaperPosit
 listToPosition offset signatureSize xs =
   [(x, Map.lookup ix index) | (x, ix) <- xsWithIndex]
  where
-  index = Debug.traceShowId $ toIndex signatureSize
+  index = toIndex signatureSize
   xsWithIndex = zip xs [offset + 1 ..]
 
 
@@ -93,8 +99,8 @@ listToPosition offset signatureSize xs =
 data Config
   = Config
   { inputDir :: !FilePath
-  , signatureSize :: !Int
-  , firstPage :: !Int
+  , signatureSize :: !SignatureSize
+  , offset :: !Int
   }
   deriving (Show, Eq)
 
@@ -113,27 +119,31 @@ parser =
           <> short 'i'
           <> metavar "DIR"
       )
-    <*> parseBundleCount
-    <*> parseFirstPage
+    <*> parseSignatureSize
+    <*> parseOffset
 
 
-parseBundleCount :: Parser Int
-parseBundleCount =
-  option auto $
+data SignatureSize = Auto | Custom !Int
+  deriving (Show, Eq)
+
+
+parseSignatureSize :: Parser SignatureSize
+parseSignatureSize =
+  option (fmap Custom auto) $
     long "signatureSize"
       <> short 's'
       <> showDefault
-      <> value 1
+      <> value Auto
       <> metavar "INT"
       <> help "How many papers per signature"
 
 
-parseFirstPage :: Parser Int
-parseFirstPage =
+parseOffset :: Parser Int
+parseOffset =
   option auto $
-    long "firstPage"
-      <> short 'f'
+    long "offset"
+      <> short 'o'
       <> showDefault
-      <> value 1
+      <> value 0
       <> metavar "INT"
       <> help "At what page does the book start"
