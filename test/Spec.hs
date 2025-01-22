@@ -1,5 +1,5 @@
 import Data.Map qualified as Map
-import Impose (Paper (..))
+import Impose (Paper (..), PaperPosition (..))
 import Impose qualified
 import Test.Hspec
 
@@ -36,23 +36,69 @@ main = hspec $ do
           , backRight = 5
           }
 
-    it "gens papers" $ do
+    it "paper from 1 page" $ do
+      Impose.toPaper 1 1
+        `shouldBe` Paper
+          { frontLeft = 2
+          , frontRight = 3
+          , backLeft = 4
+          , backRight = 1
+          }
+
+    it "paper from 2 paper" $ do
+      Impose.toPaper 2 5
+        `shouldBe` Paper
+          { frontLeft = 4
+          , frontRight = 5
+          , backLeft = 3
+          , backRight = 6
+          }
+
+    it "gens papers with 16 pages" $ do
       Impose.toIndex 16
         `shouldBe` Map.fromList
-          [ (1, 1)
-          , (2, 1)
-          , (3, 2)
-          , (4, 2)
-          , (5, 3)
-          , (6, 3)
-          , (7, 4)
-          , (8, 4)
-          , (9, 4)
-          , (10, 4)
-          , (11, 3)
-          , (12, 3)
-          , (13, 2)
-          , (14, 2)
-          , (15, 1)
-          , (16, 1)
+          [ (1, (1, BackRight))
+          , (2, (1, FrontLeft))
+          , (3, (2, BackRight))
+          , (4, (2, FrontLeft))
+          , (5, (3, BackRight))
+          , (6, (3, FrontLeft))
+          , (7, (4, BackRight))
+          , (8, (4, FrontLeft))
+          , (9, (4, FrontRight))
+          , (10, (4, BackLeft))
+          , (11, (3, FrontRight))
+          , (12, (3, BackLeft))
+          , (13, (2, FrontRight))
+          , (14, (2, BackLeft))
+          , (15, (1, FrontRight))
+          , (16, (1, BackLeft))
           ]
+
+    it "list to position off by 0" $ do
+      Impose.listToPosition 0 ["1"] `shouldBe` [("1", Just (1, BackRight))]
+
+    it "list to position off by 1" $ do
+      Impose.listToPosition 1 ["1"] `shouldBe` [("1", Just (1, FrontLeft))]
+
+    it "list to position off by 2" $ do
+      Impose.listToPosition 2 ["1"] `shouldBe` [("1", Just (1, FrontRight))]
+
+    it "list to position off by 3" $ do
+      Impose.listToPosition 3 ["1"] `shouldBe` [("1", Just (1, BackLeft))]
+
+    it "list to position off by 0, 4 pages" $ do
+      Impose.listToPosition 0 ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (1, BackRight))
+                   , ("2", Just (1, FrontLeft))
+                   , ("3", Just (1, FrontRight))
+                   , ("4", Just (1, BackLeft))
+                   ]
+
+    it "list to position off by 1, 4 pages" $ do
+      Impose.listToPosition 1 ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (1, FrontLeft))
+                   , ("2", Just (2, BackRight))
+                   , ("3", Just (2, FrontLeft))
+                   , ("4", Just (2, FrontRight))
+                   ]

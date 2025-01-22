@@ -5,6 +5,7 @@ module Impose where
 
 import Data.List qualified as List
 import Data.Map qualified as Map
+import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
 import Options.Applicative
 import System.FilePath ((</>))
@@ -39,17 +40,26 @@ data Paper
   deriving (Show, Eq)
 
 
+data PaperPosition
+  = FrontLeft
+  | FrontRight
+  | BackLeft
+  | BackRight
+  deriving (Show, Eq)
+
+
 toPaper :: Int -> Int -> Paper
 toPaper paper totalPages =
   Paper fl fr bl br
  where
   fl = br + 1
   fr = bl - 1
-  bl = totalPages - br + 1
+  bl = total - br + 1
   br = (paper - 1) * 2 + 1
+  total = max 4 totalPages
 
 
-toIndex :: Int -> Map.Map Int Int
+toIndex :: Int -> Map.Map Int (Int, PaperPosition)
 toIndex totalPages =
   foldr
     ( \ix acc ->
@@ -57,15 +67,25 @@ toIndex totalPages =
           paper = toPaper ix totalPages
          in
           Map.fromList
-            [ (paper.backLeft, ix)
-            , (paper.backRight, ix)
-            , (paper.frontLeft, ix)
-            , (paper.frontRight, ix)
+            [ (paper.backLeft, (ix, BackLeft))
+            , (paper.backRight, (ix, BackRight))
+            , (paper.frontLeft, (ix, FrontLeft))
+            , (paper.frontRight, (ix, FrontRight))
             ]
             <> acc
     )
     mempty
-    (take (ceiling (int2Float totalPages / 4)) [1 ..])
+    ixs
+ where
+  ixs = take (ceiling (int2Float totalPages / 4)) [1 ..]
+
+
+listToPosition :: Int -> [FilePath] -> [(FilePath, Maybe (Int, PaperPosition))]
+listToPosition offset xs =
+  [(x, Map.lookup ix index) | (x, ix) <- xsWithIndex]
+ where
+  index = Debug.traceShowId $ toIndex $ offset + length xs
+  xsWithIndex = zip xs [offset + 1 ..]
 
 
 -- CLI
@@ -73,7 +93,8 @@ toIndex totalPages =
 data Config
   = Config
   { inputDir :: !FilePath
-  , bundleCount :: !Int
+  , signatureSize :: !Int
+  , firstPage :: !Int
   }
   deriving (Show, Eq)
 
@@ -93,14 +114,26 @@ parser =
           <> metavar "DIR"
       )
     <*> parseBundleCount
+    <*> parseFirstPage
 
 
 parseBundleCount :: Parser Int
 parseBundleCount =
   option auto $
-    long "bundleCount"
-      <> short 'b'
+    long "signatureSize"
+      <> short 's'
       <> showDefault
       <> value 1
       <> metavar "INT"
-      <> help "How many folded bundleCount do you need?"
+      <> help "How many papers per signature"
+
+
+parseFirstPage :: Parser Int
+parseFirstPage =
+  option auto $
+    long "firstPage"
+      <> short 'f'
+      <> showDefault
+      <> value 1
+      <> metavar "INT"
+      <> help "At what page does the book start"
