@@ -8,11 +8,13 @@ import Data.List qualified as List
 import Data.Map qualified as Map
 import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
-import Options.Applicative
+import Options.Applicative qualified as OptParse
 import System.FilePath ((</>))
 import System.FilePath qualified as FilePath
 import System.FilePath.Glob qualified as Glob
 
+
+-- MAIN
 
 main :: IO ()
 main = do
@@ -21,20 +23,13 @@ main = do
   pages <- fromInputDirOrdered config
   let signatureSize =
         case config.signatureSize of
-          Auto -> ceiling $ int2Float (length pages) / 4
+          Auto -> PaperCount $ ceiling $ int2Float (length pages) / 4
           Custom n -> n
       positions = listToPosition config.offset signatureSize pages
   traverse_ print positions
 
 
-fromInputDirOrdered :: Config -> IO [FilePath]
-fromInputDirOrdered config = do
-  pages <- Glob.glob $ config.inputDir </> "*.tif"
-  pure
-    $ List.sortBy
-      (\a b -> compare (FilePath.takeFileName a) (FilePath.takeFileName b))
-    $ filter (FilePath.isExtensionOf "tif") pages
-
+-- DEFS
 
 data Paper
   = Paper
@@ -46,7 +41,7 @@ data Paper
   deriving (Show, Eq)
 
 
-data PaperPosition
+data PositionOnPaper
   = FrontLeft
   | FrontRight
   | BackLeft
@@ -54,43 +49,79 @@ data PaperPosition
   deriving (Show, Eq)
 
 
-toPaper :: Int -> Int -> Paper
-toPaper paper totalPapers =
+newtype PaperCount
+  = PaperCount {value :: Int}
+  deriving (Show, Eq)
+
+
+newtype PaperIndex
+  = PaperIndex {value :: Int}
+  deriving (Show, Eq)
+
+
+newtype PageCount
+  = PageCount {value :: Int}
+  deriving (Show, Eq)
+
+
+newtype SignatureIndex
+  = SignatureIndex {value :: Map.Map Int (Int, PositionOnPaper)}
+  deriving (Show, Eq)
+
+
+-- FUN
+
+fromInputDirOrdered :: Config -> IO [FilePath]
+fromInputDirOrdered config = do
+  pages <- Glob.glob $ config.inputDir </> "*.tif"
+  pure
+    $ List.sortBy
+      (\a b -> compare (FilePath.takeFileName a) (FilePath.takeFileName b))
+    $ filter (FilePath.isExtensionOf "tif") pages
+
+
+toPaper :: PaperIndex -> PaperCount -> Paper
+toPaper paperIndex paperCount =
   Paper fl fr bl br
  where
   fl = br + 1
   fr = bl - 1
   bl = total - br + 1
-  br = (paper - 1) * 2 + 1
-  total = totalPapers * 4
+  br = (paperIndex.value - 1) * 2 + 1
+  total = paperCount.value * 4
 
 
-toIndex :: Int -> Map.Map Int (Int, PaperPosition)
-toIndex totalPapers =
-  foldr
-    ( \paper acc ->
-        let
-          paperPos = toPaper paper totalPapers
-         in
-          Map.fromList
-            [ (paperPos.backLeft, (paper, BackLeft))
-            , (paperPos.backRight, (paper, BackRight))
-            , (paperPos.frontLeft, (paper, FrontLeft))
-            , (paperPos.frontRight, (paper, FrontRight))
-            ]
-            <> acc
-    )
-    mempty
-    ixs
+toSignatureIndex :: PaperCount -> SignatureIndex
+toSignatureIndex paperCount =
+  SignatureIndex $
+    foldr
+      ( \paper acc ->
+          let
+            paperPos = toPaper paper paperCount
+           in
+            Map.fromList
+              [ (paperPos.backLeft, (paper.value, BackLeft))
+              , (paperPos.backRight, (paper.value, BackRight))
+              , (paperPos.frontLeft, (paper.value, FrontLeft))
+              , (paperPos.frontRight, (paper.value, FrontRight))
+              ]
+              <> acc
+      )
+      mempty
+      ixs
  where
-  ixs = take totalPapers [1 ..]
+  ixs = take paperCount.value $ PaperIndex <$> [1 ..]
 
 
-listToPosition :: Int -> Int -> [FilePath] -> [(FilePath, Maybe (Int, PaperPosition))]
-listToPosition offset signatureSize xs =
-  [(x, Map.lookup ix index) | (x, ix) <- xsWithIndex]
+generateSignatureIndecies :: [Int] -> SignatureIndex
+generateSignatureIndecies _ = undefined
+
+
+listToPosition :: Int -> PaperCount -> [FilePath] -> [(FilePath, Maybe (Int, PositionOnPaper))]
+listToPosition offset paperCount xs =
+  [(x, Map.lookup ix index.value) | (x, ix) <- xsWithIndex]
  where
-  index = toIndex signatureSize
+  index = toSignatureIndex paperCount
   xsWithIndex = zip xs [offset + 1 ..]
 
 
@@ -105,45 +136,47 @@ data Config
   deriving (Show, Eq)
 
 
+data SignatureSize = Auto | Custom !PaperCount
+  deriving (Show, Eq)
+
+
 parseArgs :: IO Config
 parseArgs =
-  customExecParser (prefs showHelpOnError) $
-    info (parser <**> helper) (fullDesc <> progDesc "impose")
+  OptParse.customExecParser (OptParse.prefs OptParse.showHelpOnError) $
+    OptParse.info
+      (parser OptParse.<**> OptParse.helper)
+      (OptParse.fullDesc <> OptParse.progDesc "impose")
 
 
-parser :: Parser Config
+parser :: OptParse.Parser Config
 parser =
   Config
-    <$> strOption
-      ( long "input"
-          <> short 'i'
-          <> metavar "DIR"
+    <$> OptParse.strOption
+      ( OptParse.long "input"
+          <> OptParse.short 'i'
+          <> OptParse.metavar "DIR"
       )
     <*> parseSignatureSize
     <*> parseOffset
 
 
-data SignatureSize = Auto | Custom !Int
-  deriving (Show, Eq)
-
-
-parseSignatureSize :: Parser SignatureSize
+parseSignatureSize :: OptParse.Parser SignatureSize
 parseSignatureSize =
-  option (fmap Custom auto) $
-    long "signatureSize"
-      <> short 's'
-      <> showDefault
-      <> value Auto
-      <> metavar "INT"
-      <> help "How many papers per signature"
+  OptParse.option (fmap (Custom . PaperCount) OptParse.auto) $
+    OptParse.long "signatureSize"
+      <> OptParse.short 's'
+      <> OptParse.showDefault
+      <> OptParse.value Auto
+      <> OptParse.metavar "INT"
+      <> OptParse.help "How many papers per signature"
 
 
-parseOffset :: Parser Int
+parseOffset :: OptParse.Parser Int
 parseOffset =
-  option auto $
-    long "offset"
-      <> short 'o'
-      <> showDefault
-      <> value 0
-      <> metavar "INT"
-      <> help "At what page does the book start"
+  OptParse.option OptParse.auto $
+    OptParse.long "offset"
+      <> OptParse.short 'o'
+      <> OptParse.showDefault
+      <> OptParse.value 0
+      <> OptParse.metavar "INT"
+      <> OptParse.help "At what page does the book start"
