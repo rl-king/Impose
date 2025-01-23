@@ -35,6 +35,7 @@ library impose-lib
                       , text
                       , time
                       , containers
+                      , split
 
 test-suite spec
     import:           defaults

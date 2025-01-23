@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -5,6 +6,7 @@ module Impose where
 
 import Data.Foldable (traverse_)
 import Data.List qualified as List
+import Data.List.Split as List.Split
 import Data.Map qualified as Map
 import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
@@ -67,6 +69,7 @@ newtype PageCount
 newtype SignatureIndex
   = SignatureIndex {value :: Map.Map Int (Int, PositionOnPaper)}
   deriving (Show, Eq)
+  deriving newtype (Semigroup, Monoid)
 
 
 -- FUN
@@ -82,12 +85,12 @@ fromInputDirOrdered config = do
 
 toPaper :: PaperIndex -> PaperCount -> Paper
 toPaper paperIndex paperCount =
-  Paper fl fr bl br
+  Paper frontLeft frontRight backLeft backRight
  where
-  fl = br + 1
-  fr = bl - 1
-  bl = total - br + 1
-  br = (paperIndex.value - 1) * 2 + 1
+  frontLeft = backRight + 1
+  frontRight = backLeft - 1
+  backLeft = total - backRight + 1
+  backRight = (paperIndex.value - 1) * 2 + 1
   total = paperCount.value * 4
 
 
@@ -113,8 +116,14 @@ toSignatureIndex paperCount =
   ixs = take paperCount.value $ PaperIndex <$> [1 ..]
 
 
-generateSignatureIndecies :: [Int] -> SignatureIndex
-generateSignatureIndecies _ = undefined
+toPaperCountList :: [a] -> PaperCount -> [PaperCount]
+toPaperCountList xs paperCount =
+  PaperCount . length <$> List.Split.chunksOf paperCount.value xs
+
+
+generateSignatureIndecies :: [PaperCount] -> SignatureIndex
+generateSignatureIndecies =
+  foldMap toSignatureIndex
 
 
 listToPosition :: Int -> PaperCount -> [FilePath] -> [(FilePath, Maybe (Int, PositionOnPaper))]
