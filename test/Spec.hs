@@ -49,7 +49,7 @@ main = hspec $ do
           }
 
     it "gens papers with 16 pages" $ do
-      Impose.toSignatureIndex (SignatureNumber 1) (SignatureSize 4)
+      Impose.toSignatureIndex (SheetNumber 1) (SignatureNumber 1) (SignatureSize 4)
         `shouldBe` ( Impose.SignatureIndex $
                        Map.fromList
                          [ (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight))
@@ -122,56 +122,35 @@ main = hspec $ do
       Impose.listToSignatureSizes (PageAmount 17) (SignatureSize 2)
         `shouldBe` [SignatureSize 2, SignatureSize 2, SignatureSize 1]
 
--- it "list to position off by 0, 4 pages" $ do
---   Impose.listToPosition 0 (SignatureSize 1) ["1", "2", "3", "4"]
---     `shouldBe` [ ("1", Just (1, 1, BackRight))
---                , ("2", Just (1, 1, FrontLeft))
---                , ("3", Just (1, 1, FrontRight))
---                , ("4", Just (1, 1, BackLeft))
---                ]
+    it "list to position off by 0, 4 pages" $ do
+      Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, BackRight))
+                   , ("2", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
+                   , ("3", Just (SignatureNumber 1, SheetNumber 1, FrontRight))
+                   , ("4", Just (SignatureNumber 1, SheetNumber 1, BackLeft))
+                   ]
 
--- it "list to position off by 1, 4 pages" $ do
---   Impose.listToPosition 1 (SignatureSize 2) ["1", "2", "3", "4"]
---     `shouldBe` [ ("1", Just (1, 1, FrontLeft))
---                , ("2", Just (1, 2, BackRight))
---                , ("3", Just (1, 2, FrontLeft))
---                , ("4", Just (1, 2, FrontRight))
---                ]
+    it "list to position off by 1, 4 pages" $ do
+      Impose.listToPosition (Offset (PageAmount 1)) (SignatureSize 2) ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
+                   , ("2", Just (SignatureNumber 1, SheetNumber 2, BackRight))
+                   , ("3", Just (SignatureNumber 1, SheetNumber 2, FrontLeft))
+                   , ("4", Just (SignatureNumber 1, SheetNumber 2, FrontRight))
+                   ]
 
--- it "list to position off by 2, 4 pages" $ do
---   Impose.listToPosition 2 (SignatureSize 2) ["1", "2", "3", "4"]
---     `shouldBe` [ ("1", Just (1, 2, BackRight))
---                , ("2", Just (1, 2, FrontLeft))
---                , ("3", Just (1, 2, FrontRight))
---                , ("4", Just (1, 2, BackLeft))
---                ]
+    it "list to position off by 2, 4 pages" $ do
+      Impose.listToPosition (Offset (PageAmount 2)) (SignatureSize 2) ["1", "2", "3", "4"]
+        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 2, BackRight))
+                   , ("2", Just (SignatureNumber 1, SheetNumber 2, FrontLeft))
+                   , ("3", Just (SignatureNumber 1, SheetNumber 2, FrontRight))
+                   , ("4", Just (SignatureNumber 1, SheetNumber 2, BackLeft))
+                   ]
 
--- it "count papers, even amount" $ do
---   Impose.toPaperCountList [1 .. 12] (SignatureSize 4)
---     `shouldBe` [SignatureSize 4, SignatureSize 4, SignatureSize 4]
-
--- it "count papers, uneven amount" $ do
---   Impose.toPaperCountList [1 .. 11] (SignatureSize 4)
---     `shouldBe` [SignatureSize 4, SignatureSize 4, SignatureSize 3]
-
--- it "gen indecies, 4 pages 1 paper" $ do
---   Impose.generateSignatureIndecies (Impose.toPaperCountList [1 .. 4] (SignatureSize 1))
---     `shouldBe` SignatureIndex
---       ( Map.fromList
---           [ (1, (1, BackRight))
---           , (2, (1, FrontLeft))
---           , (3, (1, FrontRight))
---           , (4, (1, BackLeft))
---           ]
---       )
-
--- it "gen indecies, 5 pages 1 paper" $ do
---   Impose.generateSignatureIndecies (Impose.toPaperCountList [1 .. 5] (SignatureSize 1))
---     `shouldBe` SignatureIndex
---       ( Map.fromList
---           [ (1, (1, BackRight))
---           , (2, (1, FrontLeft))
---           , (3, (1, FrontRight))
---           , (4, (1, BackLeft))
---           ]
---       )
+    it "list to position off by 0, 5 pages" $ do
+      Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1", "2", "3", "4", "5"]
+        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, BackRight))
+                   , ("2", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
+                   , ("3", Just (SignatureNumber 1, SheetNumber 1, FrontRight))
+                   , ("4", Just (SignatureNumber 1, SheetNumber 1, BackLeft))
+                   , ("5", Just (SignatureNumber 2, SheetNumber 1, BackRight))
+                   ]

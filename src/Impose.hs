@@ -6,7 +6,6 @@ module Impose where
 
 import Data.Foldable (traverse_)
 import Data.List qualified as List
-import Data.List.Split as List.Split
 import Data.Map qualified as Map
 import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
@@ -98,28 +97,28 @@ fromInputDirOrdered config = do
 
 
 toPaperSheetData :: SheetNumber -> SignatureSize -> PaperSheet
-toPaperSheetData paperSheetNumber signatureSize =
+toPaperSheetData sheetNumber signatureSize =
   PaperSheet
     (PageNumber frontLeft)
     (PageNumber frontRight)
     (PageNumber backLeft)
     (PageNumber backRight)
-    paperSheetNumber
+    sheetNumber
  where
   frontLeft = backRight + 1
   frontRight = backLeft - 1
   backLeft = total - backRight + 1
-  backRight = (paperSheetNumber.value - 1) * 2 + 1
+  backRight = (sheetNumber.value - 1) * 2 + 1
   total = signatureSize.value * 4
 
 
-toSignatureIndex :: SignatureNumber -> SignatureSize -> SignatureIndex
-toSignatureIndex signatureNumber signatureSize =
+toSignatureIndex :: SheetNumber -> SignatureNumber -> SignatureSize -> SignatureIndex
+toSignatureIndex sheetNumber signatureNumber signatureSize =
   SignatureIndex $
     foldMap
-      ( \paperSheetNumber ->
+      ( \sheetNumber_ ->
           let
-            sheetData = toPaperSheetData paperSheetNumber signatureSize
+            sheetData = toPaperSheetData sheetNumber_ signatureSize
            in
             Map.fromList
               [ (sheetData.backLeft, (signatureNumber, sheetData.number, BackLeft))
@@ -130,7 +129,23 @@ toSignatureIndex signatureNumber signatureSize =
       )
       ixs
  where
-  ixs = take signatureSize.value $ SheetNumber <$> [1 ..]
+  ixs = take signatureSize.value $ SheetNumber <$> [sheetNumber.value ..]
+
+
+generateSignatureIndex :: [SignatureSize] -> SignatureIndex
+generateSignatureIndex =
+  let
+    toOffset signatureNumber signatureSize =
+      (signatureNumber.value - 1) * signatureSize.value + 1
+   in
+    foldMap
+      ( \(signatureNumber, signatureSize) ->
+          toSignatureIndex
+            (SheetNumber (Debug.traceShowId (toOffset signatureNumber signatureSize)))
+            signatureNumber
+            signatureSize
+      )
+      . zip (SignatureNumber <$> [1 ..])
 
 
 listToSignatureSizes :: PageAmount -> SignatureSize -> [SignatureSize]
@@ -146,22 +161,18 @@ listToSignatureSizes pageAmount signatureSize =
           : listToSignatureSizes (PageAmount (pageAmount.value - optioned)) signatureSize
 
 
-generateSignatureIndex :: [SignatureSize] -> SignatureIndex
-generateSignatureIndex =
-  foldMap (uncurry toSignatureIndex) . zip (SignatureNumber <$> [1 ..])
-
-
 listToPosition ::
+  (Eq a) =>
   Offset ->
   SignatureSize ->
-  [FilePath] ->
-  [(FilePath, Maybe (SignatureNumber, SheetNumber, PositionOnSheet))]
+  [a] ->
+  [(a, Maybe (SignatureNumber, SheetNumber, PositionOnSheet))]
 listToPosition offset signatureSize xs =
   [(x, Map.lookup pageNumber signatureIndex.value) | (pageNumber, x) <- pageNumbered]
  where
   pageAmount = PageAmount $ length xs + offset.value.value
   sizes = listToSignatureSizes pageAmount signatureSize
-  signatureIndex = generateSignatureIndex sizes
+  signatureIndex = Debug.traceShowId $ generateSignatureIndex sizes
   pageNumbered = zip (PageNumber <$> [1 + offset.value.value ..]) xs
 
 
