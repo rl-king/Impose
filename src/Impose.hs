@@ -112,8 +112,8 @@ toPaperSheetData sheetNumber signatureSize =
   total = signatureSize.value * 4
 
 
-toSignatureIndex :: SheetNumber -> SignatureNumber -> SignatureSize -> SignatureIndex
-toSignatureIndex sheetNumber signatureNumber signatureSize =
+toSignatureIndex :: SignatureNumber -> SignatureSize -> SignatureIndex
+toSignatureIndex signatureNumber signatureSize =
   SignatureIndex $
     foldMap
       ( \sheetNumber_ ->
@@ -129,23 +129,12 @@ toSignatureIndex sheetNumber signatureNumber signatureSize =
       )
       ixs
  where
-  ixs = take signatureSize.value $ SheetNumber <$> [sheetNumber.value ..]
+  ixs = take signatureSize.value $ SheetNumber <$> [1 ..]
 
 
-generateSignatureIndex :: [SignatureSize] -> SignatureIndex
-generateSignatureIndex =
-  let
-    toOffset signatureNumber signatureSize =
-      (signatureNumber.value - 1) * signatureSize.value + 1
-   in
-    foldMap
-      ( \(signatureNumber, signatureSize) ->
-          toSignatureIndex
-            (SheetNumber (Debug.traceShowId (toOffset signatureNumber signatureSize)))
-            signatureNumber
-            signatureSize
-      )
-      . zip (SignatureNumber <$> [1 ..])
+generateSignatureIndecies :: [SignatureSize] -> [SignatureIndex]
+generateSignatureIndecies =
+  fmap (uncurry toSignatureIndex) . zip (SignatureNumber <$> [1 ..])
 
 
 listToSignatureSizes :: PageAmount -> SignatureSize -> [SignatureSize]
@@ -162,18 +151,21 @@ listToSignatureSizes pageAmount signatureSize =
 
 
 listToPosition ::
-  (Eq a) =>
+  (Eq a, Show a) =>
   Offset ->
   SignatureSize ->
   [a] ->
-  [(a, Maybe (SignatureNumber, SheetNumber, PositionOnSheet))]
+  [(a, (PageNumber, (SignatureNumber, SheetNumber, PositionOnSheet)))]
 listToPosition offset signatureSize xs =
-  [(x, Map.lookup pageNumber signatureIndex.value) | (pageNumber, x) <- pageNumbered]
+  zip
+    xs
+    ( drop offset.value.value $
+        concatMap (Map.toList . (.value)) signatureIndecies
+    )
  where
   pageAmount = PageAmount $ length xs + offset.value.value
   sizes = listToSignatureSizes pageAmount signatureSize
-  signatureIndex = Debug.traceShowId $ generateSignatureIndex sizes
-  pageNumbered = zip (PageNumber <$> [1 + offset.value.value ..]) xs
+  signatureIndecies = generateSignatureIndecies sizes
 
 
 -- CLI

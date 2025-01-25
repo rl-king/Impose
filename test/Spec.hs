@@ -49,7 +49,7 @@ main = hspec $ do
           }
 
     it "gens papers with 16 pages" $ do
-      Impose.toSignatureIndex (SheetNumber 1) (SignatureNumber 1) (SignatureSize 4)
+      Impose.toSignatureIndex (SignatureNumber 1) (SignatureSize 4)
         `shouldBe` ( Impose.SignatureIndex $
                        Map.fromList
                          [ (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight))
@@ -74,7 +74,7 @@ main = hspec $ do
       Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1"]
         `shouldBe` [
                      ( "1"
-                     , Just (SignatureNumber 1, SheetNumber 1, BackRight)
+                     , (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight))
                      )
                    ]
 
@@ -82,7 +82,7 @@ main = hspec $ do
       Impose.listToPosition (Offset (PageAmount 1)) (SignatureSize 1) ["1"]
         `shouldBe` [
                      ( "1"
-                     , Just (SignatureNumber 1, SheetNumber 1, FrontLeft)
+                     , (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft))
                      )
                    ]
 
@@ -90,7 +90,7 @@ main = hspec $ do
       Impose.listToPosition (Offset (PageAmount 2)) (SignatureSize 1) ["1"]
         `shouldBe` [
                      ( "1"
-                     , Just (SignatureNumber 1, SheetNumber 1, FrontRight)
+                     , (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight))
                      )
                    ]
 
@@ -98,7 +98,7 @@ main = hspec $ do
       Impose.listToPosition (Offset (PageAmount 3)) (SignatureSize 1) ["1"]
         `shouldBe` [
                      ( "1"
-                     , Just (SignatureNumber 1, SheetNumber 1, BackLeft)
+                     , (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft))
                      )
                    ]
 
@@ -123,34 +123,85 @@ main = hspec $ do
         `shouldBe` [SignatureSize 2, SignatureSize 2, SignatureSize 1]
 
     it "list to position off by 0, 4 pages" $ do
-      Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1", "2", "3", "4"]
-        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, BackRight))
-                   , ("2", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
-                   , ("3", Just (SignatureNumber 1, SheetNumber 1, FrontRight))
-                   , ("4", Just (SignatureNumber 1, SheetNumber 1, BackLeft))
+      Impose.listToPosition
+        (Offset (PageAmount 0))
+        (SignatureSize 1)
+        (show @Int <$> [1 .. 4])
+        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
+                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
+                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight)))
+                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft)))
                    ]
 
     it "list to position off by 1, 4 pages" $ do
-      Impose.listToPosition (Offset (PageAmount 1)) (SignatureSize 2) ["1", "2", "3", "4"]
-        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
-                   , ("2", Just (SignatureNumber 1, SheetNumber 2, BackRight))
-                   , ("3", Just (SignatureNumber 1, SheetNumber 2, FrontLeft))
-                   , ("4", Just (SignatureNumber 1, SheetNumber 2, FrontRight))
+      Impose.listToPosition
+        (Offset (PageAmount 1))
+        (SignatureSize 2)
+        (show @Int <$> [1 .. 4])
+        `shouldBe` [ ("1", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
+                   , ("2", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
+                   , ("3", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
+                   , ("4", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
                    ]
 
     it "list to position off by 2, 4 pages" $ do
-      Impose.listToPosition (Offset (PageAmount 2)) (SignatureSize 2) ["1", "2", "3", "4"]
-        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 2, BackRight))
-                   , ("2", Just (SignatureNumber 1, SheetNumber 2, FrontLeft))
-                   , ("3", Just (SignatureNumber 1, SheetNumber 2, FrontRight))
-                   , ("4", Just (SignatureNumber 1, SheetNumber 2, BackLeft))
+      Impose.listToPosition
+        (Offset (PageAmount 2))
+        (SignatureSize 2)
+        (show @Int <$> [1 .. 4])
+        `shouldBe` [ ("1", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
+                   , ("2", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
+                   , ("3", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
+                   , ("4", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
                    ]
 
-    it "list to position off by 0, 5 pages" $ do
-      Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1", "2", "3", "4", "5"]
-        `shouldBe` [ ("1", Just (SignatureNumber 1, SheetNumber 1, BackRight))
-                   , ("2", Just (SignatureNumber 1, SheetNumber 1, FrontLeft))
-                   , ("3", Just (SignatureNumber 1, SheetNumber 1, FrontRight))
-                   , ("4", Just (SignatureNumber 1, SheetNumber 1, BackLeft))
-                   , ("5", Just (SignatureNumber 2, SheetNumber 1, BackRight))
+    it "list to position off by 0, 6 pages" $ do
+      Impose.listToPosition
+        (Offset (PageAmount 0))
+        (SignatureSize 1)
+        (show @Int <$> [1 .. 6])
+        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
+                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
+                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight)))
+                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft)))
+                   , ("5", (PageNumber 1, (SignatureNumber 2, SheetNumber 1, BackRight)))
+                   , ("6", (PageNumber 2, (SignatureNumber 2, SheetNumber 1, FrontLeft)))
+                   ]
+
+    it "list to position off by 0, 8 pages, 2 sheet sig" $ do
+      Impose.listToPosition
+        (Offset (PageAmount 0))
+        (SignatureSize 2)
+        (show @Int <$> [1 .. 8])
+        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
+                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
+                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
+                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
+                   , ("5", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
+                   , ("6", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
+                   , ("7", (PageNumber 7, (SignatureNumber 1, SheetNumber 1, FrontRight)))
+                   , ("8", (PageNumber 8, (SignatureNumber 1, SheetNumber 1, BackLeft)))
+                   ]
+
+    it "list to position off by 0, 16 pages, 2 sheet sig" $ do
+      Impose.listToPosition
+        (Offset (PageAmount 0))
+        (SignatureSize 2)
+        (show @Int <$> [1 .. 16])
+        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
+                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
+                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
+                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
+                   , ("5", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
+                   , ("6", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
+                   , ("7", (PageNumber 7, (SignatureNumber 1, SheetNumber 1, FrontRight)))
+                   , ("8", (PageNumber 8, (SignatureNumber 1, SheetNumber 1, BackLeft)))
+                   , ("9", (PageNumber 1, (SignatureNumber 2, SheetNumber 1, BackRight)))
+                   , ("10", (PageNumber 2, (SignatureNumber 2, SheetNumber 1, FrontLeft)))
+                   , ("11", (PageNumber 3, (SignatureNumber 2, SheetNumber 2, BackRight)))
+                   , ("12", (PageNumber 4, (SignatureNumber 2, SheetNumber 2, FrontLeft)))
+                   , ("13", (PageNumber 5, (SignatureNumber 2, SheetNumber 2, FrontRight)))
+                   , ("14", (PageNumber 6, (SignatureNumber 2, SheetNumber 2, BackLeft)))
+                   , ("15", (PageNumber 7, (SignatureNumber 2, SheetNumber 1, FrontRight)))
+                   , ("16", (PageNumber 8, (SignatureNumber 2, SheetNumber 1, BackLeft)))
                    ]
