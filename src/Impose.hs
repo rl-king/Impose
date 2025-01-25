@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -16,7 +17,7 @@ import System.Directory.OsPath qualified as Dir
 import System.FilePath.Glob qualified as Glob
 import System.Log.FastLogger (LogType' (..), defaultBufSize)
 import System.Log.FastLogger qualified as FastLogger
-import System.OsPath (OsPath, (</>))
+import System.OsPath (OsPath, osp, (</>))
 import System.OsPath qualified as OsPath
 import Prelude hiding (log)
 
@@ -87,7 +88,7 @@ newtype SignatureIndex
 
 
 type Logger =
-  FastLogger.LogStr -> IO ()
+  String -> IO ()
 
 
 -- MAIN
@@ -125,18 +126,41 @@ mkLog logger msg =
 
 fromInputDirOrdered :: Config -> IO [OsPath]
 fromInputDirOrdered config = do
-  path <- OsPath.decodeFS $ config.inputDir </> [OsPath.osp|*.tif|]
+  path <- OsPath.decodeFS $ config.inputDir </> [osp|*.tif|]
   pages <- traverse OsPath.encodeFS =<< Glob.glob path
   pure
     $ List.sortBy
       (\a b -> compare (OsPath.takeFileName a) (OsPath.takeFileName b))
-    $ filter (OsPath.isExtensionOf [OsPath.osp|tif|]) pages
+    $ filter (OsPath.isExtensionOf [osp|tif|]) pages
 
 
 copyFiles :: Logger -> [PageData OsPath] -> IO ()
 copyFiles log [] = log "Finished"
-copyFiles log pageData =
-  print ()
+copyFiles log (pageData : rest) = do
+  sigDir <- OsPath.encodeFS (show pageData.signatureNumber.value)
+  sheetDir <- OsPath.encodeFS (show pageData.sheetNumber.value)
+  let targetDir =
+        [osp|book|] </> sigDir </> sheetDir
+      targetFileName =
+        positionToOsPath
+          pageData.positionOnSheet
+          <> [osp|-|]
+          <> OsPath.takeFileName pageData.content
+      target =
+        targetDir </> targetFileName
+  Dir.createDirectoryIfMissing True targetDir
+  Dir.copyFileWithMetadata pageData.content target
+  x <- OsPath.decodeFS target
+  log $ "Copied file to: " <> x
+  copyFiles log rest
+
+
+positionToOsPath :: PositionOnSheet -> OsPath
+positionToOsPath = \case
+  FrontLeft -> [osp|front-left|]
+  FrontRight -> [osp|front-right|]
+  BackLeft -> [osp|back-left|]
+  BackRight -> [osp|back-right|]
 
 
 -- PAPER MATH
