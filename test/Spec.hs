@@ -15,7 +15,6 @@ main = hspec $ do
           , frontRight = PageNumber 15
           , backLeft = PageNumber 16
           , backRight = PageNumber 1
-          , number = SheetNumber 1
           }
 
     it "paper from page 2" $ do
@@ -25,7 +24,6 @@ main = hspec $ do
           , frontRight = PageNumber 13
           , backLeft = PageNumber 14
           , backRight = PageNumber 3
-          , number = SheetNumber 2
           }
 
     it "paper from page 3" $ do
@@ -35,7 +33,6 @@ main = hspec $ do
           , frontRight = PageNumber 11
           , backLeft = PageNumber 12
           , backRight = PageNumber 5
-          , number = SheetNumber 3
           }
 
     it "paper from 1 page" $ do
@@ -45,7 +42,6 @@ main = hspec $ do
           , frontRight = PageNumber 3
           , backLeft = PageNumber 4
           , backRight = PageNumber 1
-          , number = SheetNumber 1
           }
 
     it "gens papers with 16 pages" $ do

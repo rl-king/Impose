@@ -1,6 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Impose where
 
@@ -10,27 +12,27 @@ import Data.Map qualified as Map
 import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
 import Options.Applicative qualified as OptParse
-import System.FilePath ((</>))
-import System.FilePath qualified as FilePath
+import System.Directory.OsPath qualified as Dir
 import System.FilePath.Glob qualified as Glob
-
-
--- MAIN
-
-main :: IO ()
-main = do
-  config <- parseArgs
-  print config
-  pages <- fromInputDirOrdered config
-  let signatureSize =
-        case config.signatureSizeOption of
-          Auto -> SignatureSize $ ceiling $ int2Float (length pages) / 4
-          Custom n -> n
-      positions = listToPosition config.offset signatureSize pages
-  traverse_ print positions
+import System.Log.FastLogger (LogType' (..), defaultBufSize)
+import System.Log.FastLogger qualified as FastLogger
+import System.OsPath (OsPath, (</>))
+import System.OsPath qualified as OsPath
+import Prelude hiding (log)
 
 
 -- DEFS
+
+data PageData a
+  = PageData
+  { content :: !a
+  , pageNumber :: !PageNumber
+  , signatureNumber :: !SignatureNumber
+  , sheetNumber :: !SheetNumber
+  , positionOnSheet :: !PositionOnSheet
+  }
+  deriving (Show, Eq)
+
 
 data PaperSheet
   = PaperSheet
@@ -38,7 +40,6 @@ data PaperSheet
   , frontRight :: !PageNumber
   , backLeft :: !PageNumber
   , backRight :: !PageNumber
-  , number :: !SheetNumber
   }
   deriving (Show, Eq)
 
@@ -85,16 +86,60 @@ newtype SignatureIndex
   deriving newtype (Semigroup, Monoid)
 
 
--- FUN
+type Logger =
+  FastLogger.LogStr -> IO ()
 
-fromInputDirOrdered :: Config -> IO [FilePath]
+
+-- MAIN
+
+main :: IO ()
+main = do
+  timeCache <- FastLogger.newTimeCache "%T"
+  FastLogger.withTimedFastLogger timeCache (LogStdout defaultBufSize) $
+    \timedFastLogger -> do
+      let log :: (FastLogger.ToLogStr a) => a -> IO ()
+          log = mkLog timedFastLogger . FastLogger.toLogStr
+      config <- parseArgs
+      print config
+      pages <- fromInputDirOrdered config
+      let signatureSize =
+            case config.signatureSizeOption of
+              Auto -> SignatureSize $ ceiling $ int2Float (length pages) / 4
+              Custom n -> n
+          positions = listToPosition config.offset signatureSize pages
+      if config.dryRun
+        then do
+          log $ "SignatureSize: " <> show signatureSize
+          traverse_ (log . show) positions
+        else do
+          log $ "SignatureSize: " <> show signatureSize
+          copyFiles log positions
+
+
+mkLog :: FastLogger.TimedFastLogger -> FastLogger.LogStr -> IO ()
+mkLog logger msg =
+  logger (\time -> FastLogger.toLogStr time <> " " <> msg <> "\n")
+
+
+-- FILESYSTEM
+
+fromInputDirOrdered :: Config -> IO [OsPath]
 fromInputDirOrdered config = do
-  pages <- Glob.glob $ config.inputDir </> "*.tif"
+  path <- OsPath.decodeFS $ config.inputDir </> [OsPath.osp|*.tif|]
+  pages <- traverse OsPath.encodeFS =<< Glob.glob path
   pure
     $ List.sortBy
-      (\a b -> compare (FilePath.takeFileName a) (FilePath.takeFileName b))
-    $ filter (FilePath.isExtensionOf "tif") pages
+      (\a b -> compare (OsPath.takeFileName a) (OsPath.takeFileName b))
+    $ filter (OsPath.isExtensionOf [OsPath.osp|tif|]) pages
 
+
+copyFiles :: Logger -> [PageData OsPath] -> IO ()
+copyFiles log [] = log "Finished"
+copyFiles log pageData =
+  print ()
+
+
+-- PAPER MATH
 
 toPaperSheetData :: SheetNumber -> SignatureSize -> PaperSheet
 toPaperSheetData sheetNumber signatureSize =
@@ -103,7 +148,6 @@ toPaperSheetData sheetNumber signatureSize =
     (PageNumber frontRight)
     (PageNumber backLeft)
     (PageNumber backRight)
-    sheetNumber
  where
   frontLeft = backRight + 1
   frontRight = backLeft - 1
@@ -116,15 +160,15 @@ toSignatureIndex :: SignatureNumber -> SignatureSize -> SignatureIndex
 toSignatureIndex signatureNumber signatureSize =
   SignatureIndex $
     foldMap
-      ( \sheetNumber_ ->
+      ( \sheetNumber ->
           let
-            sheetData = toPaperSheetData sheetNumber_ signatureSize
+            sheetData = toPaperSheetData sheetNumber signatureSize
            in
             Map.fromList
-              [ (sheetData.backLeft, (signatureNumber, sheetData.number, BackLeft))
-              , (sheetData.backRight, (signatureNumber, sheetData.number, BackRight))
-              , (sheetData.frontLeft, (signatureNumber, sheetData.number, FrontLeft))
-              , (sheetData.frontRight, (signatureNumber, sheetData.number, FrontRight))
+              [ (sheetData.backLeft, (signatureNumber, sheetNumber, BackLeft))
+              , (sheetData.backRight, (signatureNumber, sheetNumber, BackRight))
+              , (sheetData.frontLeft, (signatureNumber, sheetNumber, FrontLeft))
+              , (sheetData.frontRight, (signatureNumber, sheetNumber, FrontRight))
               ]
       )
       ixs
@@ -140,14 +184,13 @@ generateSignatureIndecies =
 listToSignatureSizes :: PageAmount -> SignatureSize -> [SignatureSize]
 listToSignatureSizes (PageAmount 0) _ = []
 listToSignatureSizes pageAmount signatureSize =
-  let
-    optioned = signatureSize.value * 4
-   in
-    if pageAmount.value < optioned
-      then [SignatureSize . ceiling $ int2Float pageAmount.value / 4]
-      else
-        signatureSize
-          : listToSignatureSizes (PageAmount (pageAmount.value - optioned)) signatureSize
+  if pageAmount.value < optioned
+    then [SignatureSize . ceiling $ int2Float pageAmount.value / 4]
+    else
+      signatureSize
+        : listToSignatureSizes (PageAmount (pageAmount.value - optioned)) signatureSize
+ where
+  optioned = signatureSize.value * 4
 
 
 listToPosition ::
@@ -155,13 +198,22 @@ listToPosition ::
   Offset ->
   SignatureSize ->
   [a] ->
-  [(a, (PageNumber, (SignatureNumber, SheetNumber, PositionOnSheet)))]
+  [PageData a]
 listToPosition offset signatureSize xs =
-  zip
-    xs
-    ( drop offset.value.value $
-        concatMap (Map.toList . (.value)) signatureIndecies
-    )
+  [ PageData
+      { content = content
+      , pageNumber = pageNumber
+      , signatureNumber = signatureNumber
+      , sheetNumber = sheetNumber
+      , positionOnSheet = positionOnSheet
+      }
+  | (content, (pageNumber, (signatureNumber, sheetNumber, positionOnSheet))) <-
+      zip
+        xs
+        ( drop offset.value.value $
+            concatMap (Map.toList . (.value)) signatureIndecies
+        )
+  ]
  where
   pageAmount = PageAmount $ length xs + offset.value.value
   sizes = listToSignatureSizes pageAmount signatureSize
@@ -172,9 +224,10 @@ listToPosition offset signatureSize xs =
 
 data Config
   = Config
-  { inputDir :: !FilePath
+  { inputDir :: !OsPath
   , signatureSizeOption :: !SignatureSizeOption
   , offset :: !Offset
+  , dryRun :: !Bool
   }
   deriving (Show, Eq)
 
@@ -198,13 +251,18 @@ parseArgs =
 parser :: OptParse.Parser Config
 parser =
   Config
-    <$> OptParse.strOption
-      ( OptParse.long "input"
-          <> OptParse.short 'i'
-          <> OptParse.metavar "DIR"
-      )
+    <$> parseInputDir
     <*> parseSignatureSizeOption
     <*> parseOffset
+    <*> parseDryRun
+
+
+parseInputDir :: OptParse.Parser OsPath
+parseInputDir =
+  OptParse.option (OptParse.maybeReader OsPath.encodeUtf) $
+    OptParse.long "input"
+      <> OptParse.short 'i'
+      <> OptParse.metavar "DIR"
 
 
 parseSignatureSizeOption :: OptParse.Parser SignatureSizeOption
@@ -227,3 +285,12 @@ parseOffset =
       <> OptParse.value (Offset (PageAmount 0))
       <> OptParse.metavar "INT"
       <> OptParse.help "At what page does the book start"
+
+
+parseDryRun :: OptParse.Parser Bool
+parseDryRun =
+  OptParse.flag False True $
+    OptParse.long "dry-run"
+      <> OptParse.short 'd'
+      <> OptParse.showDefault
+      <> OptParse.help "Perform dry-run of imposing"

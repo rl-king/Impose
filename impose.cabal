@@ -36,6 +36,7 @@ library impose-lib
                       , time
                       , containers
                       , split
+                      , fast-logger
 
 test-suite spec
     import:           defaults
