@@ -24,8 +24,8 @@ main = do
   print config
   pages <- fromInputDirOrdered config
   let signatureSize =
-        case config.signatureSize of
-          Auto -> PaperCount $ ceiling $ int2Float (length pages) / 4
+        case config.signatureSizeOption of
+          Auto -> SignatureSize $ ceiling $ int2Float (length pages) / 4
           Custom n -> n
       positions = listToPosition config.offset signatureSize pages
   traverse_ print positions
@@ -33,17 +33,18 @@ main = do
 
 -- DEFS
 
-data Paper
-  = Paper
-  { frontLeft :: !Int
-  , frontRight :: !Int
-  , backLeft :: !Int
-  , backRight :: !Int
+data PaperSheet
+  = PaperSheet
+  { frontLeft :: !PageNumber
+  , frontRight :: !PageNumber
+  , backLeft :: !PageNumber
+  , backRight :: !PageNumber
+  , number :: !PaperSheetNumber
   }
   deriving (Show, Eq)
 
 
-data PositionOnPaper
+data PositionOnPaperSheet
   = FrontLeft
   | FrontRight
   | BackLeft
@@ -51,23 +52,31 @@ data PositionOnPaper
   deriving (Show, Eq)
 
 
-newtype PaperCount
-  = PaperCount {value :: Int}
-  deriving (Show, Eq)
+newtype SignatureSize
+  = SignatureSize {value :: Int}
+  deriving (Show, Eq, Ord)
 
 
-newtype PaperIndex
-  = PaperIndex {value :: Int}
-  deriving (Show, Eq)
+newtype PaperSheetNumber
+  = PaperSheetNumber {value :: Int}
+  deriving (Show, Eq, Ord)
 
 
-newtype PageCount
-  = PageCount {value :: Int}
-  deriving (Show, Eq)
+newtype PageAmount
+  = PageAmount {value :: Int}
+  deriving (Show, Eq, Ord)
+
+
+newtype PageNumber
+  = PageNumber {value :: Int}
+  deriving (Show, Eq, Ord)
 
 
 newtype SignatureIndex
-  = SignatureIndex {value :: Map.Map Int (Int, PositionOnPaper)}
+  = SignatureIndex
+  { value ::
+      Map.Map PageNumber (PaperSheetNumber, PositionOnPaperSheet)
+  }
   deriving (Show, Eq)
   deriving newtype (Semigroup, Monoid)
 
@@ -83,54 +92,68 @@ fromInputDirOrdered config = do
     $ filter (FilePath.isExtensionOf "tif") pages
 
 
-toPaper :: PaperIndex -> PaperCount -> Paper
-toPaper paperIndex paperCount =
-  Paper frontLeft frontRight backLeft backRight
+toPaperSheetData :: PaperSheetNumber -> SignatureSize -> PaperSheet
+toPaperSheetData paperSheetNumber signatureSize =
+  PaperSheet
+    (PageNumber frontLeft)
+    (PageNumber frontRight)
+    (PageNumber backLeft)
+    (PageNumber backRight)
+    paperSheetNumber
  where
   frontLeft = backRight + 1
   frontRight = backLeft - 1
   backLeft = total - backRight + 1
-  backRight = (paperIndex.value - 1) * 2 + 1
-  total = paperCount.value * 4
+  backRight = (paperSheetNumber.value - 1) * 2 + 1
+  total = signatureSize.value * 4
 
 
-toSignatureIndex :: PaperCount -> SignatureIndex
-toSignatureIndex paperCount =
+toSignatureIndex :: SignatureSize -> SignatureIndex
+toSignatureIndex signatureSize =
   SignatureIndex $
-    foldr
-      ( \paper acc ->
+    foldMap
+      ( \paperSheetNumber ->
           let
-            paperPos = toPaper paper paperCount
+            sheetData = toPaperSheetData paperSheetNumber signatureSize
            in
             Map.fromList
-              [ (paperPos.backLeft, (paper.value, BackLeft))
-              , (paperPos.backRight, (paper.value, BackRight))
-              , (paperPos.frontLeft, (paper.value, FrontLeft))
-              , (paperPos.frontRight, (paper.value, FrontRight))
+              [ (sheetData.backLeft, (sheetData.paperSheetNumber, BackLeft))
+              , (sheetData.backRight, (sheetData.paperSheetNumber, BackRight))
+              , (sheetData.frontLeft, (sheetData.paperSheetNumber, FrontLeft))
+              , (sheetData.frontRight, (sheetData.paperSheetNumber, FrontRight))
               ]
-              <> acc
       )
-      mempty
       ixs
  where
-  ixs = take paperCount.value $ PaperIndex <$> [1 ..]
+  ixs = take signatureSize.value $ PaperSheetNumber <$> [1 ..]
 
 
-toPaperCountList :: [a] -> PaperCount -> [PaperCount]
-toPaperCountList xs paperCount =
-  PaperCount . length <$> List.Split.chunksOf paperCount.value xs
+listToSignatureSizes :: [a] -> SignatureSize -> [SignatureSize]
+listToSignatureSizes [] _ = []
+listToSignatureSizes xs signatureSize =
+  let
+    needed = length xs
+    optioned = signatureSize.value * 4
+   in
+    if needed < optioned
+      then [SignatureSize $ needed `mod` 4]
+      else signatureSize : listToSignatureSizes (drop optioned xs) signatureSize
 
 
-generateSignatureIndecies :: [PaperCount] -> SignatureIndex
+generateSignatureIndecies :: [SignatureSize] -> [(Int, SignatureIndex)]
 generateSignatureIndecies =
-  foldMap toSignatureIndex
+  zip [1 ..] . fmap toSignatureIndex
 
 
-listToPosition :: Int -> PaperCount -> [FilePath] -> [(FilePath, Maybe (Int, PositionOnPaper))]
-listToPosition offset paperCount xs =
+listToPosition ::
+  Int ->
+  SignatureSize ->
+  [FilePath] ->
+  [(FilePath, Maybe (Int, PositionOnPaperSheet))]
+listToPosition offset signatureSize xs =
   [(x, Map.lookup ix index.value) | (x, ix) <- xsWithIndex]
  where
-  index = toSignatureIndex paperCount
+  index = toSignatureIndex signatureSize
   xsWithIndex = zip xs [offset + 1 ..]
 
 
@@ -139,13 +162,13 @@ listToPosition offset paperCount xs =
 data Config
   = Config
   { inputDir :: !FilePath
-  , signatureSize :: !SignatureSize
+  , signatureSizeOption :: !SignatureSizeOption
   , offset :: !Int
   }
   deriving (Show, Eq)
 
 
-data SignatureSize = Auto | Custom !PaperCount
+data SignatureSizeOption = Auto | Custom !SignatureSize
   deriving (Show, Eq)
 
 
@@ -165,13 +188,13 @@ parser =
           <> OptParse.short 'i'
           <> OptParse.metavar "DIR"
       )
-    <*> parseSignatureSize
+    <*> parseSignatureSizeOption
     <*> parseOffset
 
 
-parseSignatureSize :: OptParse.Parser SignatureSize
-parseSignatureSize =
-  OptParse.option (fmap (Custom . PaperCount) OptParse.auto) $
+parseSignatureSizeOption :: OptParse.Parser SignatureSizeOption
+parseSignatureSizeOption =
+  OptParse.option (fmap (Custom . SignatureSize) OptParse.auto) $
     OptParse.long "signatureSize"
       <> OptParse.short 's'
       <> OptParse.showDefault

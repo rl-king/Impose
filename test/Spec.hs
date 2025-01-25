@@ -1,5 +1,5 @@
 import Data.Map qualified as Map
-import Impose (Paper (..), PaperCount (..), PaperIndex (..), PositionOnPaper (..))
+import Impose (Paper (..), PaperCount (..), PaperNumber (..), PositionOnPaper (..), SignatureIndex (..))
 import Impose qualified
 import Test.Hspec
 
@@ -10,7 +10,7 @@ main = hspec $ do
     let signatureSize = PaperCount 4
 
     it "paper from page 1" $ do
-      Impose.toPaper (PaperIndex 1) signatureSize
+      Impose.toPaper (PaperNumber 1) signatureSize
         `shouldBe` Paper
           { frontLeft = 2
           , frontRight = 15
@@ -19,7 +19,7 @@ main = hspec $ do
           }
 
     it "paper from page 2" $ do
-      Impose.toPaper (PaperIndex 2) signatureSize
+      Impose.toPaper (PaperNumber 2) signatureSize
         `shouldBe` Paper
           { frontLeft = 4
           , frontRight = 13
@@ -28,7 +28,7 @@ main = hspec $ do
           }
 
     it "paper from page 3" $ do
-      Impose.toPaper (PaperIndex 3) signatureSize
+      Impose.toPaper (PaperNumber 3) signatureSize
         `shouldBe` Paper
           { frontLeft = 6
           , frontRight = 11
@@ -37,7 +37,7 @@ main = hspec $ do
           }
 
     it "paper from 1 page" $ do
-      Impose.toPaper (PaperIndex 1) (PaperCount 1)
+      Impose.toPaper (PaperNumber 1) (PaperCount 1)
         `shouldBe` Paper
           { frontLeft = 2
           , frontRight = 3
@@ -102,3 +102,33 @@ main = hspec $ do
                    , ("3", Just (2, FrontRight))
                    , ("4", Just (2, BackLeft))
                    ]
+
+    it "count papers, even amount" $ do
+      Impose.toPaperCountList [1 .. 12] (PaperCount 4)
+        `shouldBe` [PaperCount 4, PaperCount 4, PaperCount 4]
+
+    it "count papers, uneven amount" $ do
+      Impose.toPaperCountList [1 .. 11] (PaperCount 4)
+        `shouldBe` [PaperCount 4, PaperCount 4, PaperCount 3]
+
+    it "gen indecies, 4 pages 1 paper" $ do
+      Impose.generateSignatureIndecies (Impose.toPaperCountList [1 .. 4] (PaperCount 1))
+        `shouldBe` SignatureIndex
+          ( Map.fromList
+              [ (1, (1, BackRight))
+              , (2, (1, FrontLeft))
+              , (3, (1, FrontRight))
+              , (4, (1, BackLeft))
+              ]
+          )
+
+    it "gen indecies, 5 pages 1 paper" $ do
+      Impose.generateSignatureIndecies (Impose.toPaperCountList [1 .. 5] (PaperCount 1))
+        `shouldBe` SignatureIndex
+          ( Map.fromList
+              [ (1, (1, BackRight))
+              , (2, (1, FrontLeft))
+              , (3, (1, FrontRight))
+              , (4, (1, BackLeft))
+              ]
+          )
