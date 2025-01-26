@@ -1,6 +1,6 @@
 # Impose
 
-Create a book layout from an ordered directory of files.
+Create a [book layout](https://en.wikipedia.org/wiki/Imposition) from an ordered directory of files.
 
 
 ``` shell
