@@ -68,34 +68,21 @@ main = hspec $ do
                    )
     it "list to position off by 0" $ do
       Impose.listToPosition (Offset (PageAmount 0)) (SignatureSize 1) ["1"]
-        `shouldBe` [
-                     ( "1"
-                     , (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight))
-                     )
+        `shouldBe` [ PageData "1" (PageNumber 1) (SignatureNumber 1) (SheetNumber 1) BackRight
                    ]
 
     it "list to position off by 1" $ do
       Impose.listToPosition (Offset (PageAmount 1)) (SignatureSize 1) ["1"]
-        `shouldBe` [
-                     ( "1"
-                     , (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft))
-                     )
-                   ]
+        `shouldBe` [PageData "1" (PageNumber 2) (SignatureNumber 1) (SheetNumber 1) FrontLeft]
 
     it "list to position off by 2" $ do
       Impose.listToPosition (Offset (PageAmount 2)) (SignatureSize 1) ["1"]
-        `shouldBe` [
-                     ( "1"
-                     , (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight))
-                     )
+        `shouldBe` [ PageData "1" (PageNumber 3) (SignatureNumber 1) (SheetNumber 1) FrontRight
                    ]
 
     it "list to position off by 3" $ do
       Impose.listToPosition (Offset (PageAmount 3)) (SignatureSize 1) ["1"]
-        `shouldBe` [
-                     ( "1"
-                     , (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft))
-                     )
+        `shouldBe` [ PageData "1" (PageNumber 4) (SignatureNumber 1) (SheetNumber 1) BackLeft
                    ]
 
     it "list to sig 1" $ do
@@ -123,10 +110,30 @@ main = hspec $ do
         (Offset (PageAmount 0))
         (SignatureSize 1)
         (show @Int <$> [1 .. 4])
-        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
-                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
-                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight)))
-                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft)))
+        `shouldBe` [ PageData
+                       "1"
+                       (PageNumber 1)
+                       (SignatureNumber 1)
+                       (SheetNumber 1)
+                       BackRight
+                   , PageData
+                       "2"
+                       (PageNumber 2)
+                       (SignatureNumber 1)
+                       (SheetNumber 1)
+                       FrontLeft
+                   , PageData
+                       "3"
+                       (PageNumber 3)
+                       (SignatureNumber 1)
+                       (SheetNumber 1)
+                       FrontRight
+                   , PageData
+                       "4"
+                       (PageNumber 4)
+                       (SignatureNumber 1)
+                       (SheetNumber 1)
+                       BackLeft
                    ]
 
     it "list to position off by 1, 4 pages" $ do
@@ -134,10 +141,10 @@ main = hspec $ do
         (Offset (PageAmount 1))
         (SignatureSize 2)
         (show @Int <$> [1 .. 4])
-        `shouldBe` [ ("1", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
-                   , ("2", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
-                   , ("3", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
-                   , ("4", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
+        `shouldBe` [ PageData "1" (PageNumber 2) (SignatureNumber 1) (SheetNumber 1) FrontLeft
+                   , PageData "2" (PageNumber 3) (SignatureNumber 1) (SheetNumber 2) BackRight
+                   , PageData "3" (PageNumber 4) (SignatureNumber 1) (SheetNumber 2) FrontLeft
+                   , PageData "4" (PageNumber 5) (SignatureNumber 1) (SheetNumber 2) FrontRight
                    ]
 
     it "list to position off by 2, 4 pages" $ do
@@ -145,10 +152,10 @@ main = hspec $ do
         (Offset (PageAmount 2))
         (SignatureSize 2)
         (show @Int <$> [1 .. 4])
-        `shouldBe` [ ("1", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
-                   , ("2", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
-                   , ("3", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
-                   , ("4", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
+        `shouldBe` [ PageData "1" (PageNumber 3) (SignatureNumber 1) (SheetNumber 2) BackRight
+                   , PageData "2" (PageNumber 4) (SignatureNumber 1) (SheetNumber 2) FrontLeft
+                   , PageData "3" (PageNumber 5) (SignatureNumber 1) (SheetNumber 2) FrontRight
+                   , PageData "4" (PageNumber 6) (SignatureNumber 1) (SheetNumber 2) BackLeft
                    ]
 
     it "list to position off by 0, 6 pages" $ do
@@ -156,12 +163,12 @@ main = hspec $ do
         (Offset (PageAmount 0))
         (SignatureSize 1)
         (show @Int <$> [1 .. 6])
-        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
-                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
-                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 1, FrontRight)))
-                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 1, BackLeft)))
-                   , ("5", (PageNumber 1, (SignatureNumber 2, SheetNumber 1, BackRight)))
-                   , ("6", (PageNumber 2, (SignatureNumber 2, SheetNumber 1, FrontLeft)))
+        `shouldBe` [ PageData "1" (PageNumber 1) (SignatureNumber 1) (SheetNumber 1) BackRight
+                   , PageData "2" (PageNumber 2) (SignatureNumber 1) (SheetNumber 1) FrontLeft
+                   , PageData "3" (PageNumber 3) (SignatureNumber 1) (SheetNumber 1) FrontRight
+                   , PageData "4" (PageNumber 4) (SignatureNumber 1) (SheetNumber 1) BackLeft
+                   , PageData "5" (PageNumber 1) (SignatureNumber 2) (SheetNumber 1) BackRight
+                   , PageData "6" (PageNumber 2) (SignatureNumber 2) (SheetNumber 1) FrontLeft
                    ]
 
     it "list to position off by 0, 8 pages, 2 sheet sig" $ do
@@ -169,14 +176,14 @@ main = hspec $ do
         (Offset (PageAmount 0))
         (SignatureSize 2)
         (show @Int <$> [1 .. 8])
-        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
-                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
-                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
-                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
-                   , ("5", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
-                   , ("6", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
-                   , ("7", (PageNumber 7, (SignatureNumber 1, SheetNumber 1, FrontRight)))
-                   , ("8", (PageNumber 8, (SignatureNumber 1, SheetNumber 1, BackLeft)))
+        `shouldBe` [ PageData "1" (PageNumber 1) (SignatureNumber 1) (SheetNumber 1) BackRight
+                   , PageData "2" (PageNumber 2) (SignatureNumber 1) (SheetNumber 1) FrontLeft
+                   , PageData "3" (PageNumber 3) (SignatureNumber 1) (SheetNumber 2) BackRight
+                   , PageData "4" (PageNumber 4) (SignatureNumber 1) (SheetNumber 2) FrontLeft
+                   , PageData "5" (PageNumber 5) (SignatureNumber 1) (SheetNumber 2) FrontRight
+                   , PageData "6" (PageNumber 6) (SignatureNumber 1) (SheetNumber 2) BackLeft
+                   , PageData "7" (PageNumber 7) (SignatureNumber 1) (SheetNumber 1) FrontRight
+                   , PageData "8" (PageNumber 8) (SignatureNumber 1) (SheetNumber 1) BackLeft
                    ]
 
     it "list to position off by 0, 16 pages, 2 sheet sig" $ do
@@ -184,20 +191,20 @@ main = hspec $ do
         (Offset (PageAmount 0))
         (SignatureSize 2)
         (show @Int <$> [1 .. 16])
-        `shouldBe` [ ("1", (PageNumber 1, (SignatureNumber 1, SheetNumber 1, BackRight)))
-                   , ("2", (PageNumber 2, (SignatureNumber 1, SheetNumber 1, FrontLeft)))
-                   , ("3", (PageNumber 3, (SignatureNumber 1, SheetNumber 2, BackRight)))
-                   , ("4", (PageNumber 4, (SignatureNumber 1, SheetNumber 2, FrontLeft)))
-                   , ("5", (PageNumber 5, (SignatureNumber 1, SheetNumber 2, FrontRight)))
-                   , ("6", (PageNumber 6, (SignatureNumber 1, SheetNumber 2, BackLeft)))
-                   , ("7", (PageNumber 7, (SignatureNumber 1, SheetNumber 1, FrontRight)))
-                   , ("8", (PageNumber 8, (SignatureNumber 1, SheetNumber 1, BackLeft)))
-                   , ("9", (PageNumber 1, (SignatureNumber 2, SheetNumber 1, BackRight)))
-                   , ("10", (PageNumber 2, (SignatureNumber 2, SheetNumber 1, FrontLeft)))
-                   , ("11", (PageNumber 3, (SignatureNumber 2, SheetNumber 2, BackRight)))
-                   , ("12", (PageNumber 4, (SignatureNumber 2, SheetNumber 2, FrontLeft)))
-                   , ("13", (PageNumber 5, (SignatureNumber 2, SheetNumber 2, FrontRight)))
-                   , ("14", (PageNumber 6, (SignatureNumber 2, SheetNumber 2, BackLeft)))
-                   , ("15", (PageNumber 7, (SignatureNumber 2, SheetNumber 1, FrontRight)))
-                   , ("16", (PageNumber 8, (SignatureNumber 2, SheetNumber 1, BackLeft)))
+        `shouldBe` [ PageData "1" (PageNumber 1) (SignatureNumber 1) (SheetNumber 1) BackRight
+                   , PageData "2" (PageNumber 2) (SignatureNumber 1) (SheetNumber 1) FrontLeft
+                   , PageData "3" (PageNumber 3) (SignatureNumber 1) (SheetNumber 2) BackRight
+                   , PageData "4" (PageNumber 4) (SignatureNumber 1) (SheetNumber 2) FrontLeft
+                   , PageData "5" (PageNumber 5) (SignatureNumber 1) (SheetNumber 2) FrontRight
+                   , PageData "6" (PageNumber 6) (SignatureNumber 1) (SheetNumber 2) BackLeft
+                   , PageData "7" (PageNumber 7) (SignatureNumber 1) (SheetNumber 1) FrontRight
+                   , PageData "8" (PageNumber 8) (SignatureNumber 1) (SheetNumber 1) BackLeft
+                   , PageData "9" (PageNumber 1) (SignatureNumber 2) (SheetNumber 1) BackRight
+                   , PageData "10" (PageNumber 2) (SignatureNumber 2) (SheetNumber 1) FrontLeft
+                   , PageData "11" (PageNumber 3) (SignatureNumber 2) (SheetNumber 2) BackRight
+                   , PageData "12" (PageNumber 4) (SignatureNumber 2) (SheetNumber 2) FrontLeft
+                   , PageData "13" (PageNumber 5) (SignatureNumber 2) (SheetNumber 2) FrontRight
+                   , PageData "14" (PageNumber 6) (SignatureNumber 2) (SheetNumber 2) BackLeft
+                   , PageData "15" (PageNumber 7) (SignatureNumber 2) (SheetNumber 1) FrontRight
+                   , PageData "16" (PageNumber 8) (SignatureNumber 2) (SheetNumber 1) BackLeft
                    ]
