@@ -7,13 +7,15 @@
 
 module Impose where
 
+import Control.Monad (unless)
 import Data.Foldable (traverse_)
-import Data.List qualified as List
 import Data.Map qualified as Map
+import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import GHC.Float (int2Float)
 import Options.Applicative qualified as OptParse
 import System.Directory.OsPath qualified as Dir
-import System.FilePath.Glob qualified as Glob
+import System.Exit as Exit
 import System.Log.FastLogger (LogType' (..), defaultBufSize)
 import System.Log.FastLogger qualified as FastLogger
 import System.OsPath (OsPath, osp, (</>))
@@ -100,7 +102,7 @@ main = do
       let log :: (FastLogger.ToLogStr a) => a -> IO ()
           log = mkLog timedFastLogger . FastLogger.toLogStr
       config <- parseArgs
-      pages <- fromInputDirOrdered config
+      pages <- readAndParseIndexFile log config
       let signatureSize =
             case config.signatureSizeOption of
               Auto -> SignatureSize $ ceiling $ int2Float (length pages) / 4
@@ -128,14 +130,15 @@ mkLog logger msg =
 
 -- FILESYSTEM
 
-fromInputDirOrdered :: Config -> IO [OsPath]
-fromInputDirOrdered config = do
-  path <- OsPath.decodeFS $ config.inputDir </> [osp|*.tif|]
-  pages <- traverse OsPath.encodeFS =<< Glob.glob path
-  pure
-    $ List.sortBy
-      (\a b -> compare (OsPath.takeFileName a) (OsPath.takeFileName b))
-    $ filter (OsPath.isExtensionOf [osp|tif|]) pages
+readAndParseIndexFile :: Log -> Config -> IO [OsPath]
+readAndParseIndexFile log config = do
+  let indexPath = config.inputDir </> [osp|index|]
+  indexExists <- Dir.doesFileExist indexPath
+  unless indexExists $ do
+    log $ "\"index\" file not found at: " <> show indexPath
+    Exit.exitFailure
+  indexFile <- Text.readFile =<< OsPath.decodeFS indexPath
+  traverse (OsPath.encodeFS . Text.unpack) $ Text.lines indexFile
 
 
 copyStrat :: [PageData OsPath] -> [(OsPath, OsPath)]

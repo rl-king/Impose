@@ -1,6 +1,6 @@
 # Impose
 
-Create a [book layout](https://en.wikipedia.org/wiki/Imposition) from an ordered directory of files.
+Create a [book layout](https://en.wikipedia.org/wiki/Imposition) from a list of image file paths
 
 
 ``` shell
@@ -15,7 +15,8 @@ example
 ├── 6.tif
 ├── 7.tif
 ├── 8.tif
-└── 9.tif
+├── 9.tif
+└── index
 
 
 # Run:

@@ -29,7 +29,6 @@ library impose-lib
     build-depends:    base ^>=4.18.2.1
                       , directory
                       , filepath
-                      , Glob
                       , optparse-applicative
                       , process
                       , text
