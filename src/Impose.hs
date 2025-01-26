@@ -138,7 +138,16 @@ readAndParseIndexFile log config = do
     log $ "\"index\" file not found at: " <> show indexPath
     Exit.exitFailure
   indexFile <- Text.readFile =<< OsPath.decodeFS indexPath
-  traverse (OsPath.encodeFS . Text.unpack) $ Text.lines indexFile
+  pages <- traverse (OsPath.encodeFS . Text.unpack) $ Text.lines indexFile
+  traverse_
+    ( \path -> do
+        fileExists <- Dir.doesFileExist $ config.inputDir </> path
+        unless fileExists $ do
+          log $ "File not found at: " <> show path
+          Exit.exitFailure
+    )
+    pages
+  pure pages
 
 
 copyStrat :: [PageData OsPath] -> [(OsPath, OsPath)]
