@@ -143,11 +143,22 @@ copyStrat [] = []
 copyStrat (pageData : rest) = do
   sigDir <- OsPath.encodeUtf ("signature-" <> show pageData.signatureNumber.value)
   sheetDir <- OsPath.encodeUtf ("sheet-" <> show pageData.sheetNumber.value)
+  pageInfo <-
+    OsPath.encodeUtf $
+      mconcat
+        [ "sig"
+        , show pageData.signatureNumber.value
+        , "-sheet"
+        , show pageData.sheetNumber.value
+        , "-page"
+        , show pageData.pageNumber.value
+        , "-"
+        , positionToOsPath pageData.positionOnSheet
+        ]
   let targetDir =
         [osp|book|] </> sigDir </> sheetDir
       targetFileName =
-        positionToOsPath
-          pageData.positionOnSheet
+        pageInfo
           <> [osp|-|]
           <> OsPath.takeFileName pageData.content
       target =
@@ -164,12 +175,12 @@ copyFiles log ((from, to) : rest) = do
   copyFiles log rest
 
 
-positionToOsPath :: PositionOnSheet -> OsPath
+positionToOsPath :: PositionOnSheet -> String
 positionToOsPath = \case
-  FrontLeft -> [osp|front-left|]
-  FrontRight -> [osp|front-right|]
-  BackLeft -> [osp|back-left|]
-  BackRight -> [osp|back-right|]
+  FrontLeft -> "front-left"
+  FrontRight -> "front-right"
+  BackLeft -> "back-left"
+  BackRight -> "back-right"
 
 
 -- PAPER MATH
