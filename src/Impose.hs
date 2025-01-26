@@ -10,7 +10,6 @@ module Impose where
 import Data.Foldable (traverse_)
 import Data.List qualified as List
 import Data.Map qualified as Map
-import Debug.Trace qualified as Debug
 import GHC.Float (int2Float)
 import Options.Applicative qualified as OptParse
 import System.Directory.OsPath qualified as Dir
@@ -87,7 +86,7 @@ newtype SignatureIndex
   deriving newtype (Semigroup, Monoid)
 
 
-type Logger =
+type Log =
   String -> IO ()
 
 
@@ -101,20 +100,25 @@ main = do
       let log :: (FastLogger.ToLogStr a) => a -> IO ()
           log = mkLog timedFastLogger . FastLogger.toLogStr
       config <- parseArgs
-      print config
       pages <- fromInputDirOrdered config
       let signatureSize =
             case config.signatureSizeOption of
               Auto -> SignatureSize $ ceiling $ int2Float (length pages) / 4
               Custom n -> n
           positions = listToPosition config.offset signatureSize pages
+      log $ "Input dir: " <> show config.inputDir
+      log @String "Output dir: \"book\""
+      log $ "Signature size: " <> show signatureSize.value
+      log $ "Offset: " <> show config.offset.value.value
       if config.dryRun
         then do
-          log $ "SignatureSize: " <> show signatureSize
-          traverse_ (log . show) positions
+          traverse_
+            ( \(from, to) ->
+                log $ show from <> " -> " <> show to
+            )
+            $ copyStrat positions
         else do
-          log $ "SignatureSize: " <> show signatureSize
-          copyFiles log positions
+          copyFiles log $ copyStrat positions
 
 
 mkLog :: FastLogger.TimedFastLogger -> FastLogger.LogStr -> IO ()
@@ -134,11 +138,11 @@ fromInputDirOrdered config = do
     $ filter (OsPath.isExtensionOf [osp|tif|]) pages
 
 
-copyFiles :: Logger -> [PageData OsPath] -> IO ()
-copyFiles log [] = log "Finished"
-copyFiles log (pageData : rest) = do
-  sigDir <- OsPath.encodeFS (show pageData.signatureNumber.value)
-  sheetDir <- OsPath.encodeFS (show pageData.sheetNumber.value)
+copyStrat :: [PageData OsPath] -> [(OsPath, OsPath)]
+copyStrat [] = []
+copyStrat (pageData : rest) = do
+  sigDir <- OsPath.encodeUtf ("signature-" <> show pageData.signatureNumber.value)
+  sheetDir <- OsPath.encodeUtf ("sheet-" <> show pageData.sheetNumber.value)
   let targetDir =
         [osp|book|] </> sigDir </> sheetDir
       targetFileName =
@@ -148,10 +152,15 @@ copyFiles log (pageData : rest) = do
           <> OsPath.takeFileName pageData.content
       target =
         targetDir </> targetFileName
-  Dir.createDirectoryIfMissing True targetDir
-  Dir.copyFileWithMetadata pageData.content target
-  x <- OsPath.decodeFS target
-  log $ "Copied file to: " <> x
+  (pageData.content, target) : copyStrat rest
+
+
+copyFiles :: Log -> [(OsPath, OsPath)] -> IO ()
+copyFiles log [] = log "Finished"
+copyFiles log ((from, to) : rest) = do
+  Dir.createDirectoryIfMissing True $ OsPath.dropFileName to
+  Dir.copyFileWithMetadata from to
+  log $ "Copied: " <> show from <> " -> " <> show to
   copyFiles log rest
 
 
